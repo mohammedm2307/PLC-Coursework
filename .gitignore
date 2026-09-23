@@ -1,0 +1,6 @@
+# Siemens SIMATIC Manager & TIA Portal Ignored Files
+*.bak
+*.tmp
+*.lk
+~*
+*.plock
