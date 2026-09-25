@@ -1,7 +1,0 @@
-*
-!*/
-!*.awl
-!*.md
-!README*
-!*.pdf
-!.gitignore
