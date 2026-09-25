@@ -1,10 +1,6 @@
-# 1. Ignore absolutely everything in this folder by default
-*
-
-# 2. Allow Git to read folder structures
-!*/
-
 # 3. Whitelist ONLY the necessary readable files
 !*.awl
 !*.md
+!README*
+!*.pdf
 !.gitignore

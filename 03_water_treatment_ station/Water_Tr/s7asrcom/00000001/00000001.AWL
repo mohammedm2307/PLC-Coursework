@@ -1,0 +1,299 @@
+FUNCTION FC 1 : VOID
+TITLE =
+VERSION : 0.1
+
+BEGIN
+NETWORK
+TITLE =
+
+      AN    "mid level"; 
+      S     "valve 4"; 
+NETWORK
+TITLE =
+
+      A     "high level"; 
+      R     "valve 4"; 
+END_FUNCTION
+
+FUNCTION FC 2 : VOID
+TITLE =
+VERSION : 0.1
+
+BEGIN
+NETWORK
+TITLE =
+
+      A     "mid level 2"; 
+      S     "valve 1"; 
+      S     "valve 2"; 
+NETWORK
+TITLE =
+
+      A     "valve 1"; 
+      L     S5T#5S; 
+      SD    T      0; 
+      NOP   0; 
+      NOP   0; 
+      NOP   0; 
+      A     T      0; 
+      S     "p1"; 
+NETWORK
+TITLE =
+
+      O     "high level 2"; 
+      ON    "low level 1"; 
+      R     "valve 1"; 
+      R     "valve 2"; 
+      R     "p1"; 
+NETWORK
+TITLE =
+
+NETWORK
+TITLE =
+
+NETWORK
+TITLE =
+
+      L     MD    12; 
+      L     MD    16; 
+      -I    ; 
+      T     MD    20; 
+      NOP   0; 
+NETWORK
+TITLE =
+
+      L     MD    20; 
+      L     1.500000e+000; 
+      >=R   ; 
+      =     "x2"; 
+NETWORK
+TITLE =
+
+      A     "x2"; 
+      L     S5T#5M; 
+      SD    T      4; 
+      NOP   0; 
+      NOP   0; 
+      NOP   0; 
+      A     T      4; 
+      S     "x3"; 
+END_FUNCTION
+
+FUNCTION FC 3 : VOID
+TITLE =
+VERSION : 0.1
+
+BEGIN
+NETWORK
+TITLE =
+
+      A     "x1"; 
+      S     "valve 3"; 
+NETWORK
+TITLE =
+
+      A     "valve 3"; 
+      L     S5T#5S; 
+      SD    T      2; 
+      NOP   0; 
+      NOP   0; 
+      NOP   0; 
+      A     T      2; 
+      S     "pump2"; 
+NETWORK
+TITLE =
+
+      AN    "low level 2"; 
+      R     "valve 3"; 
+      R     "pump2"; 
+      R     "x1"; 
+END_FUNCTION
+
+FUNCTION FC 4 : VOID
+TITLE =
+VERSION : 0.1
+
+BEGIN
+NETWORK
+TITLE =
+
+      A     "x4"; 
+      S     "valve 3"; 
+NETWORK
+TITLE =
+
+      A     "valve 3"; 
+      L     S5T#5S; 
+      SD    T      5; 
+      NOP   0; 
+      NOP   0; 
+      NOP   0; 
+      A     T      5; 
+      S     "p4"; 
+      S     "pump2"; 
+NETWORK
+TITLE =
+
+      AN    "mid level 2"; 
+      R     "p4"; 
+NETWORK
+TITLE =
+
+      AN    "low level 2"; 
+      R     "pump2"; 
+      R     "valve 3"; 
+      R     "x4"; 
+      S     "x5"; 
+END_FUNCTION
+
+FUNCTION FC 5 : VOID
+TITLE =
+VERSION : 0.1
+
+BEGIN
+NETWORK
+TITLE =
+
+      A     "x6"; 
+      S     "valve 3"; 
+NETWORK
+TITLE =
+
+      A     "valve 3"; 
+      L     S5T#5S; 
+      SD    T      6; 
+      NOP   0; 
+      NOP   0; 
+      NOP   0; 
+      A     T      6; 
+      S     "pump5"; 
+      S     "pump2"; 
+NETWORK
+TITLE =
+
+      AN    "mid level 2"; 
+      R     "pump5"; 
+NETWORK
+TITLE =
+
+      AN    "low level 2"; 
+      R     "pump2"; 
+      R     "valve 2"; 
+      R     "x6"; 
+      S     "x7"; 
+END_FUNCTION
+
+FUNCTION FC 6 : VOID
+TITLE =
+VERSION : 0.1
+
+BEGIN
+NETWORK
+TITLE =
+
+      A     "x8"; 
+      S     "valve 3"; 
+NETWORK
+TITLE =
+
+      A     "valve 3"; 
+      L     S5T#5S; 
+      SD    T      7; 
+      NOP   0; 
+      NOP   0; 
+      NOP   0; 
+      A     T      7; 
+      S     "pump 6"; 
+      S     "pump2"; 
+NETWORK
+TITLE =
+
+      AN    "mid level 2"; 
+      R     "pump 6"; 
+NETWORK
+TITLE =
+
+      AN    "low level 2"; 
+      R     "pump2"; 
+      R     "valve 3"; 
+      R     "x8"; 
+      R     "x9"; 
+END_FUNCTION
+
+ORGANIZATION_BLOCK OB 1
+TITLE = "Main Program Sweep (Cycle)"
+VERSION : 0.1
+
+
+VAR_TEMP
+  OB1_EV_CLASS : BYTE ;	//Bits 0-3 = 1 (Coming event), Bits 4-7 = 1 (Event class 1)
+  OB1_SCAN_1 : BYTE ;	//1 (Cold restart scan 1 of OB 1), 3 (Scan 2-n of OB 1)
+  OB1_PRIORITY : BYTE ;	//Priority of OB Execution
+  OB1_OB_NUMBR : BYTE ;	//1 (Organization block 1, OB1)
+  OB1_RESERVED_1 : BYTE ;	//Reserved for system
+  OB1_RESERVED_2 : BYTE ;	//Reserved for system
+  OB1_PREV_CYCLE : INT ;	//Cycle time of previous OB1 scan (milliseconds)
+  OB1_MIN_CYCLE : INT ;	//Minimum cycle time of OB1 (milliseconds)
+  OB1_MAX_CYCLE : INT ;	//Maximum cycle time of OB1 (milliseconds)
+  OB1_DATE_TIME : DATE_AND_TIME ;	//Date and time OB1 started
+END_VAR
+BEGIN
+NETWORK
+TITLE =
+
+      A     "start"; 
+      S     "x"; 
+NETWORK
+TITLE =
+
+      AN    "stop"; 
+      R     "x"; 
+NETWORK
+TITLE =
+
+      A     "x"; 
+      JNB   _001; 
+      CALL FC     1 ;
+_001: NOP   0; 
+NETWORK
+TITLE =
+
+      A     "x"; 
+      JNB   _002; 
+      CALL FC     2 ;
+_002: NOP   0; 
+NETWORK
+TITLE =
+
+      A     "x"; 
+      AN    "y"; 
+      L     S5T#1H; 
+      SD    T      1; 
+      NOP   0; 
+      NOP   0; 
+      NOP   0; 
+      A     T      1; 
+      =     "y"; 
+NETWORK
+TITLE =
+
+      A     "y"; 
+      CU    C      1; 
+      BLD   101; 
+      NOP   0; 
+      NOP   0; 
+      A     "x1"; 
+      R     C      1; 
+      L     C      1; 
+      T     MW    10; 
+      NOP   0; 
+      NOP   0; 
+NETWORK
+TITLE =
+
+      L     MW    10; 
+      L     24; 
+      ==I   ; 
+      S     "x1"; 
+END_ORGANIZATION_BLOCK
+
