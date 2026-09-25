@@ -1,4 +1,5 @@
-# 3. Whitelist ONLY the necessary readable files
+*
+!*/
 !*.awl
 !*.md
 !README*
