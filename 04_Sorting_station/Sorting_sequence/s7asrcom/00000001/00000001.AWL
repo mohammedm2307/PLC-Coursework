@@ -1,0 +1,220 @@
+DATA_BLOCK "INPUTS"
+TITLE =
+VERSION : 0.1
+
+
+  STRUCT 	
+   box_order : BYTE ;	
+   box_counter : WORD ;	
+  END_STRUCT ;	
+BEGIN
+   box_order := B#16#0; 
+   box_counter := W#16#0; 
+END_DATA_BLOCK
+
+ORGANIZATION_BLOCK OB 1
+TITLE = "Main Program Sweep (Cycle)"
+VERSION : 0.1
+
+
+VAR_TEMP
+  OB1_EV_CLASS : BYTE ;	//Bits 0-3 = 1 (Coming event), Bits 4-7 = 1 (Event class 1)
+  OB1_SCAN_1 : BYTE ;	//1 (Cold restart scan 1 of OB 1), 3 (Scan 2-n of OB 1)
+  OB1_PRIORITY : BYTE ;	//Priority of OB Execution
+  OB1_OB_NUMBR : BYTE ;	//1 (Organization block 1, OB1)
+  OB1_RESERVED_1 : BYTE ;	//Reserved for system
+  OB1_RESERVED_2 : BYTE ;	//Reserved for system
+  OB1_PREV_CYCLE : INT ;	//Cycle time of previous OB1 scan (milliseconds)
+  OB1_MIN_CYCLE : INT ;	//Minimum cycle time of OB1 (milliseconds)
+  OB1_MAX_CYCLE : INT ;	//Maximum cycle time of OB1 (milliseconds)
+  OB1_DATE_TIME : DATE_AND_TIME ;	//Date and time OB1 started
+END_VAR
+BEGIN
+NETWORK
+TITLE =
+
+// ==============================================================================
+// FACTORY I/O - SORTING STATION CONTROL LOGIC
+// ==============================================================================
+
+// ==============================================================================
+// SECTION 1: SYSTEM MASTER CONTROL & INITIALIZATION
+// ==============================================================================
+      A     "start"; 
+      S     M      0.0; // Set Master Run Flag
+      AN    "stop"; 
+      R     M      0.0; // Reset Master Run Flag on Stop
+
+      A     M      0.0; // If System is Running:
+      S     "cov_1"; // Start Feed Conveyor 1
+      S     "conv_2"; // Start Feed Conveyor 2
+      S     "left_conv"; // Start Left Discharge Conveyor
+      S     "right_conv"; // Start Right Discharge Conveyor
+      S     "load&left"; // Start Turntable Rollers
+
+// ==============================================================================
+// SECTION 2: ENTRY DETECTION & BOX SIZING
+// ==============================================================================
+      A     I      0.2; // S2 (Height Sensor) triggered
+      S     M      2.0; // Latch: Incoming box is BIG
+
+      A     I      0.1; // S1 (Part Present Sensor)
+      FN    M    220.0; // Falling edge (Box completely passed S1)
+      =     M    220.1; // Generate raw entry pulse
+
+      A     M    220.1; // On entry pulse...
+      A(    ; 
+      L     C    100; // Check current queue count
+      L     32; // Maximum queue size
+      <I    ; // If count < 32 (Queue is not full)
+      )     ; 
+      =     M    220.2; // Generate Accepted Entry Pulse
+
+// ==============================================================================
+// SECTION 3: SHIFT REGISTER (QUEUE MEMORY MANAGEMENT)
+// ==============================================================================
+      A     M    220.2; // If a new box is accepted
+      JCN   SH01; // Jump over shift if no new box
+      L     MD   200; // Load memory double word 200
+      SLD   1; // Shift Left Double (Move all boxes 1 place older)
+      T     MD   200; // Save shifted data back to MD200
+
+      A     M      2.0; // Check if the new box was BIG
+      =     M    203.0; // Write size to newest box index (Bit 0 of MD200)
+      R     M      2.0; // Reset BIG latch for the next box
+SH01: NOP   0; 
+
+      A     M    220.2; // If a new box is accepted
+      CU    C    100; // Increment the queue counter
+
+// ==============================================================================
+// SECTION 4: BOX EXIT & QUEUE COUNTDOWN
+// ==============================================================================
+      A     "at_right_entry"; // Right discharge sensor
+      FN    M    222.0; // Falling edge (Box fully cleared)
+      =     M    222.1; 
+
+      A     "at_left_entry"; // Left discharge sensor
+      FN    M    222.2; // Falling edge (Box fully cleared)
+      =     M    222.3; 
+
+      A     M    222.1; // If box exited Right...
+      O     M    222.3; // OR box exited Left...
+      =     M    222.4; // Pulse: Box has successfully left the turntable
+
+      A     M    222.4; 
+      CD    C    100; // Decrement queue counter (Remove oldest box)
+
+      A     M    222.4; 
+      R     M    231.0; // Unlock the evaluation block for the next box
+
+// ==============================================================================
+// SECTION 5: EVALUATE OLDEST BOX (PREPARE SORTING DECISION)
+// ==============================================================================
+      A     "at_turntable_entry"; // Box arriving at turntable
+      A     "at_load_position"; // AND turntable is ready at home
+      AN    M    231.0; // AND we haven't evaluated this box yet
+      =     M    230.0; // Trigger evaluation
+
+      A     M    230.0; 
+      JCN   EV01; 
+      L     C    100; // Load queue count
+      L     1; 
+      -I    ; // ACCU1 = count - 1 (Find index of oldest box)
+
+      L     MD   200; // Load shift register (ACCU2 = index, ACCU1 = register)
+      SRD   ; // Shift Right Double (Move oldest box to Bit 0)
+      L     DW#16#1; 
+      AD    ; // AND operation to isolate Bit 0
+      L     L#0; 
+      <>D   ; // If result is NOT 0, the box is BIG
+      =     M      4.0; // Save final decision (True = Big, False = Small)
+
+      SET   ; 
+      S     M    231.0; // Lock evaluation so it doesn't run again for this box
+EV01: NOP   0; 
+
+// ==============================================================================
+// SECTION 6: DIAGNOSTICS & TRAFFIC CONTROL
+// ==============================================================================
+      L     C    100; // Load current box count
+      T     MW   100; // Transfer to MW100 for HMI/Diagnostics viewing
+
+      A     "at_front"; // Box has reached the center of the turntable
+      S     "turn_table"; // Start rotating the turntable
+      R     "load&left"; // Stop turntable rollers
+
+// --- Feed Traffic Control ---
+      A     "at_turntable_entry"; 
+      A     "at_front"; 
+      O     ; 
+      AN    "at_load_position"; 
+
+      A     "at_turntable_entry"; 
+      R     "cov_1"; // Stop Feed Conveyor 1
+      R     "conv_2"; // Stop Feed Conveyor 2
+      R     "load&left"; // Stop Turntable Rollers
+
+// ==============================================================================
+// SECTION 7: SORTING EXECUTION
+// ==============================================================================
+// Execute Sort: IF BIG BOX (Send Left)
+      A     I      0.5; // Turntable reached 90 degrees
+      A     M      4.0; // AND box is BIG
+      AN    "right"; // Interlock against right command
+      S     "load&left"; // Rollers push box to the LEFT
+
+// Execute Sort: IF SMALL BOX (Send Right)
+      A     I      0.5; // Turntable reached 90 degrees
+      AN    M      4.0; // AND box is SMALL (Not Big)
+      AN    "load&left"; // Interlock against left command
+      S     "right"; // Rollers push box to the RIGHT
+
+// ==============================================================================
+// SECTION 8: TURNTABLE RESET & RETURN HOME
+// ==============================================================================
+      A     "at_right_entry"; 
+      FN    M     50.0; // Box exited Right
+      O(    ; 
+      A     "at_left_entry"; 
+      FN    M     50.1; // OR Box exited Left
+      )     ; 
+      R     "turn_table"; // Command turntable to return home
+      S     "load&left"; // Restart rollers for the next incoming box
+      R     M      4.0; // Clear sorting decision
+
+      A     "load&left"; 
+      R     "right"; // Ensure right command is cleared
+
+END_ORGANIZATION_BLOCK
+
+ORGANIZATION_BLOCK "COMPLETE RESTART"
+TITLE = "Complete Restart"
+VERSION : 0.1
+
+
+VAR_TEMP
+  OB100_EV_CLASS : BYTE ;	//16#13, Event class 1, Entering event state, Event logged in diagnostic buffer
+  OB100_STRTUP : BYTE ;	//16#81/82/83/84 Method of startup
+  OB100_PRIORITY : BYTE ;	//Priority of OB Execution
+  OB100_OB_NUMBR : BYTE ;	//100 (Organization block 100, OB100)
+  OB100_RESERVED_1 : BYTE ;	//Reserved for system
+  OB100_RESERVED_2 : BYTE ;	//Reserved for system
+  OB100_STOP : WORD ;	//Event that caused CPU to stop (16#4xxx)
+  OB100_STRT_INFO : DWORD ;	//Information on how system started
+  OB100_DATE_TIME : DATE_AND_TIME ;	//Date and time OB100 started
+END_VAR
+BEGIN
+NETWORK
+TITLE =
+
+      SET   ; 
+      R     C    100; 
+      R     M      2.0; 
+      R     M      4.0; 
+      R     M    231.0; 
+      L     L#0; 
+      T     MD   200; 
+
+END_ORGANIZATION_BLOCK
+
